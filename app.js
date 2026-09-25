@@ -81,12 +81,24 @@
   // 3. CATALOG & API DATA LAYER
   // ==========================================
   async function loadCatalog() {
+    const saved = localStorage.getItem('smartscan_catalog');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          STATE.catalog = parsed;
+          renderManagerCatalog();
+        }
+      } catch (e) {}
+    }
+
     try {
       const res = await fetch('/api/products');
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.data) {
+        if (json.success && json.data && Array.isArray(json.data) && json.data.length > 0) {
           STATE.catalog = json.data;
+          localStorage.setItem('smartscan_catalog', JSON.stringify(STATE.catalog));
           renderManagerCatalog();
           return;
         }
@@ -95,15 +107,18 @@
       console.warn('[Catalog API] Backend unavailable, loading local fallback:', e.message);
     }
 
-    // Fallback load from static json
-    try {
-      const localRes = await fetch('./data/sample_products.json');
-      if (localRes.ok) {
-        STATE.catalog = await localRes.json();
-        renderManagerCatalog();
+    // Fallback load from static json if catalog empty
+    if (!STATE.catalog || STATE.catalog.length === 0) {
+      try {
+        const localRes = await fetch('./data/sample_products.json');
+        if (localRes.ok) {
+          STATE.catalog = await localRes.json();
+          localStorage.setItem('smartscan_catalog', JSON.stringify(STATE.catalog));
+          renderManagerCatalog();
+        }
+      } catch (err) {
+        console.error('Failed to load sample products:', err);
       }
-    } catch (err) {
-      console.error('Failed to load sample products:', err);
     }
   }
 
@@ -643,6 +658,7 @@
     }
 
     closeModal('add-product-modal');
+    localStorage.setItem('smartscan_catalog', JSON.stringify(STATE.catalog));
     renderManagerCatalog();
     initSimulatorBar();
     showToast(`Added '${name}' to store catalog!`, 'success');
@@ -656,6 +672,7 @@
       const newStock = parseInt(promptVal, 10);
       if (!isNaN(newStock) && newStock >= 0) {
         prod.stockQuantity = newStock;
+        localStorage.setItem('smartscan_catalog', JSON.stringify(STATE.catalog));
         renderManagerCatalog();
         showToast(`Stock for ${prod.name} updated to ${newStock}.`, 'success');
 
@@ -677,6 +694,7 @@
     if (!prod) return;
     if (confirm(`Are you sure you want to delete "${prod.name}" (${barcode}) from store inventory?`)) {
       STATE.catalog = STATE.catalog.filter(p => p.barcode !== barcode);
+      localStorage.setItem('smartscan_catalog', JSON.stringify(STATE.catalog));
       renderManagerCatalog();
       initSimulatorBar();
       showToast(`Deleted ${prod.name} from catalog.`, 'info');

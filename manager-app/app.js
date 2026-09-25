@@ -238,24 +238,78 @@
 
   // Load Inventory Catalog
   async function loadCatalog() {
-    const search = (document.getElementById('catalog-search-input')?.value || '').trim();
+    const search = (document.getElementById('catalog-search-input')?.value || '').trim().toLowerCase();
     const category = document.getElementById('catalog-category-filter')?.value || 'All';
     const lowStockOnly = document.getElementById('catalog-low-stock-check')?.checked || false;
 
-    let url = `${API_BASE}/api/products?category=${encodeURIComponent(category)}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
-    if (lowStockOnly) url += `&lowStockOnly=true`;
-
-    try {
-      const res = await fetch(url);
-      const json = await res.json();
-      if (json.success) {
-        AppState.catalog = json.data;
-        renderCatalogTable(AppState.catalog);
-      }
-    } catch (e) {
-      showToast('Error loading catalog.', 'error');
+    // 1. Check localStorage first
+    const saved = localStorage.getItem('smartscan_catalog');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          AppState.catalog = parsed;
+        }
+      } catch (e) {}
     }
+
+    // 2. Try fetching from Backend API if configured and available
+    if (API_BASE) {
+      try {
+        let url = `${API_BASE}/api/products?category=${encodeURIComponent(category)}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (lowStockOnly) url += `&lowStockOnly=true`;
+
+        const res = await fetch(url);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            AppState.catalog = json.data;
+            localStorage.setItem('smartscan_catalog', JSON.stringify(AppState.catalog));
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 3. Fallback load from sample_products.json if catalog is minimal
+    if (!AppState.catalog || AppState.catalog.length <= 5) {
+      try {
+        const sampleRes = await fetch('./data/sample_products.json').catch(() => fetch('../data/sample_products.json'));
+        if (sampleRes && sampleRes.ok) {
+          const sampleData = await sampleRes.json();
+          if (Array.isArray(sampleData) && sampleData.length > 0) {
+            AppState.catalog = sampleData;
+            localStorage.setItem('smartscan_catalog', JSON.stringify(AppState.catalog));
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Filter displayed catalog
+    let filtered = AppState.catalog || [];
+    if (category !== 'All') {
+      filtered = filtered.filter(p => p.category === category);
+    }
+    if (search) {
+      filtered = filtered.filter(p =>
+        (p.name && p.name.toLowerCase().includes(search)) ||
+        (p.barcode && p.barcode.includes(search)) ||
+        (p.brand && p.brand.toLowerCase().includes(search)) ||
+        (p.shelfLocation && p.shelfLocation.toLowerCase().includes(search))
+      );
+    }
+    if (lowStockOnly) {
+      filtered = filtered.filter(p => Number(p.stockQuantity) <= (Number(p.lowStockThreshold) || 10));
+    }
+
+    renderCatalogTable(filtered);
+    updateKPIsFromCatalog();
+  }
+
+  function updateKPIsFromCatalog() {
+    const lowStockCount = (AppState.catalog || []).filter(p => Number(p.stockQuantity) <= (Number(p.lowStockThreshold) || 10)).length;
+    const lowStockEl = document.getElementById('kpi-low-stock');
+    if (lowStockEl) lowStockEl.textContent = lowStockCount;
   }
 
   function renderCatalogTable(products) {
@@ -268,7 +322,7 @@
     }
 
     tbody.innerHTML = products.map(p => {
-      const isLow = p.stockQuantity <= (p.lowStockThreshold || 10);
+      const isLow = Number(p.stockQuantity) <= (Number(p.lowStockThreshold) || 10);
       return `
         <tr>
           <td>
@@ -299,38 +353,41 @@
 
   // Stock Adjustment
   async function adjustStock(id, delta) {
-    try {
-      const res = await fetch(`${API_BASE}/api/products/${id}/stock`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adjustment: delta })
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(`Stock updated for ${data.data.name} (${data.data.stockQuantity})`, 'success');
-        loadCatalog();
-        loadAnalytics();
-      }
-    } catch (e) {
-      showToast('Failed to adjust stock', 'error');
+    const item = AppState.catalog.find(p => p.id === id || p.barcode === id);
+    if (item) {
+      item.stockQuantity = Math.max(0, (Number(item.stockQuantity) || 0) + delta);
+      localStorage.setItem('smartscan_catalog', JSON.stringify(AppState.catalog));
+      showToast(`Stock updated for ${item.name} (${item.stockQuantity})`, 'success');
+      loadCatalog();
+      loadAnalytics();
     }
+
+    try {
+      if (API_BASE) {
+        await fetch(`${API_BASE}/api/products/${id}/stock`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adjustment: delta })
+        });
+      }
+    } catch (e) {}
   }
 
   // Delete SKU
   async function deleteSKU(id) {
     if (!confirm('Are you sure you want to remove this SKU from catalog?')) return;
 
+    AppState.catalog = AppState.catalog.filter(p => p.id !== id && p.barcode !== id);
+    localStorage.setItem('smartscan_catalog', JSON.stringify(AppState.catalog));
+    showToast('SKU deleted from inventory.', 'info');
+    loadCatalog();
+    loadAnalytics();
+
     try {
-      const res = await fetch(`${API_BASE}/api/products/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (data.success) {
-        showToast('SKU deleted from inventory.', 'info');
-        loadCatalog();
-        loadAnalytics();
+      if (API_BASE) {
+        await fetch(`${API_BASE}/api/products/${id}`, { method: 'DELETE' });
       }
-    } catch (e) {
-      showToast('Error deleting SKU', 'error');
-    }
+    } catch (e) {}
   }
 
   // Add SKU Modal Form
@@ -339,45 +396,47 @@
     const barcode = document.getElementById('new-sku-barcode').value.trim();
     const name = document.getElementById('new-sku-name').value.trim();
     const category = document.getElementById('new-sku-category').value;
-    const unit = document.getElementById('new-sku-unit').value.trim();
-    const costPrice = document.getElementById('new-sku-cost').value;
-    const sellingPrice = document.getElementById('new-sku-selling').value;
-    const mrp = document.getElementById('new-sku-mrp').value;
-    const stockQuantity = document.getElementById('new-sku-stock').value;
-    const lowStockThreshold = document.getElementById('new-sku-threshold').value;
-    const shelfLocation = document.getElementById('new-sku-shelf').value.trim();
+    const unit = document.getElementById('new-sku-unit').value.trim() || '1 unit';
+    const costPrice = Number(document.getElementById('new-sku-cost').value) || 0;
+    const sellingPrice = Number(document.getElementById('new-sku-selling').value) || 0;
+    const mrp = Number(document.getElementById('new-sku-mrp').value) || sellingPrice;
+    const stockQuantity = Number(document.getElementById('new-sku-stock').value) || 0;
+    const lowStockThreshold = Number(document.getElementById('new-sku-threshold').value) || 10;
+    const shelfLocation = document.getElementById('new-sku-shelf').value.trim() || 'General Shelf';
+
+    const newProd = {
+      id: `prod_${Date.now()}`,
+      barcode,
+      name,
+      category,
+      unit,
+      costPrice,
+      sellingPrice,
+      mrp,
+      stockQuantity,
+      lowStockThreshold,
+      shelfLocation,
+      brand: 'Store Brand',
+      imageUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80'
+    };
+
+    AppState.catalog.unshift(newProd);
+    localStorage.setItem('smartscan_catalog', JSON.stringify(AppState.catalog));
+    showToast(`Added '${name}' to catalog!`, 'success');
+    closeModal('add-product-modal');
+    document.getElementById('add-product-form').reset();
+    loadCatalog();
+    loadAnalytics();
 
     try {
-      const res = await fetch(`${API_BASE}/api/products`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          barcode,
-          name,
-          category,
-          unit,
-          costPrice,
-          sellingPrice,
-          mrp,
-          stockQuantity,
-          lowStockThreshold,
-          shelfLocation
-        })
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        showToast(`Added '${name}' to catalog!`, 'success');
-        closeModal('add-product-modal');
-        document.getElementById('add-product-form').reset();
-        loadCatalog();
-        loadAnalytics();
-      } else {
-        showToast(data.error || 'Failed to add product', 'error');
+      if (API_BASE) {
+        await fetch(`${API_BASE}/api/products`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newProd)
+        });
       }
-    } catch (err) {
-      showToast('Error saving product to server', 'error');
-    }
+    } catch (err) {}
   }
 
   // Export CSV
@@ -387,28 +446,95 @@
       return;
     }
 
-    const headers = ['ID', 'Barcode', 'Name', 'Category', 'SellingPrice', 'MRP', 'StockQuantity', 'ShelfLocation'];
-    const rows = AppState.catalog.map(p => [
-      p.id,
-      `"${p.barcode}"`,
-      `"${p.name.replace(/"/g, '""')}"`,
-      `"${p.category}"`,
-      p.sellingPrice,
-      p.mrp,
-      p.stockQuantity,
-      `"${p.shelfLocation || ''}"`
-    ]);
+    const headers = ['id', 'barcode', 'name', 'category', 'unit', 'costPrice', 'sellingPrice', 'mrp', 'stockQuantity', 'lowStockThreshold', 'shelfLocation', 'brand'];
+    const rows = AppState.catalog.map(p => headers.map(h => {
+      const val = p[h] !== undefined && p[h] !== null ? String(p[h]) : '';
+      return `"${val.replace(/"/g, '""')}"`;
+    }).join(','));
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `SmartScan_Catalog_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `SmartScan_Catalog_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     showToast('Catalog exported to CSV.', 'success');
+  }
+
+  // Import CSV
+  function importCatalogCSV(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+        if (lines.length <= 1) {
+          showToast('CSV file is empty or has only headers.', 'error');
+          return;
+        }
+
+        const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+        const imported = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const rowText = lines[i];
+          const cols = rowText.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || rowText.split(',');
+          const cleanCols = cols.map(c => c.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+
+          const getVal = (colNames) => {
+            for (const name of colNames) {
+              const idx = rawHeaders.indexOf(name.toLowerCase());
+              if (idx !== -1 && cleanCols[idx] !== undefined) return cleanCols[idx];
+            }
+            return '';
+          };
+
+          const barcode = getVal(['barcode', 'code', 'ean']) || ('890' + Math.floor(1000000000 + Math.random() * 9000000000));
+          const name = getVal(['name', 'product', 'title', 'item']) || `Product ${i}`;
+          const category = getVal(['category', 'cat', 'department']) || 'Gourmet & Cooking';
+          const sellingPrice = parseFloat(getVal(['sellingprice', 'price', 'rate', 'sp'])) || 100;
+          const mrp = parseFloat(getVal(['mrp', 'maxprice'])) || sellingPrice;
+          const costPrice = parseFloat(getVal(['costprice', 'cost', 'cp'])) || (sellingPrice * 0.8);
+          const stockQuantity = parseInt(getVal(['stockquantity', 'stock', 'qty', 'quantity'])) || 50;
+          const lowStockThreshold = parseInt(getVal(['lowstockthreshold', 'threshold', 'minstock'])) || 10;
+          const unit = getVal(['unit', 'size', 'weight']) || '1 unit';
+          const shelfLocation = getVal(['shelflocation', 'shelf', 'location', 'aisle']) || 'Aisle 1';
+
+          imported.push({
+            id: getVal(['id']) || `prod_${Date.now()}_${i}`,
+            barcode,
+            name,
+            category,
+            unit,
+            costPrice,
+            sellingPrice,
+            mrp,
+            stockQuantity,
+            lowStockThreshold,
+            shelfLocation,
+            brand: getVal(['brand']) || 'Store',
+            imageUrl: getVal(['imageurl', 'image']) || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80'
+          });
+        }
+
+        if (imported.length > 0) {
+          const existingMap = new Map((AppState.catalog || []).map(p => [p.barcode, p]));
+          imported.forEach(p => existingMap.set(p.barcode, p));
+          AppState.catalog = Array.from(existingMap.values());
+          localStorage.setItem('smartscan_catalog', JSON.stringify(AppState.catalog));
+          showToast(`Successfully imported ${imported.length} products!`, 'success');
+          loadCatalog();
+          loadAnalytics();
+        }
+      } catch (err) {
+        showToast('Error parsing CSV file: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
   }
 
   // Load Orders
@@ -802,6 +928,15 @@
     // Export CSV
     document.getElementById('btn-export-catalog')?.addEventListener('click', exportCatalogCSV);
 
+    // Import CSV file input
+    document.getElementById('catalog-csv-file-input')?.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        importCatalogCSV(file);
+      }
+      e.target.value = '';
+    });
+
     // Auto-generate barcode button
     document.getElementById('btn-gen-barcode')?.addEventListener('click', () => {
       const bInput = document.getElementById('new-sku-barcode');
@@ -830,7 +965,9 @@
     deleteSKU,
     openModal,
     closeModal,
-    showToast
+    showToast,
+    exportCatalogCSV,
+    importCatalogCSV
   };
 
   document.addEventListener('DOMContentLoaded', init);

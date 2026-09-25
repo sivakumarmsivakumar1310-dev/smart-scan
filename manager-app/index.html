@@ -118,9 +118,13 @@
           <h1>Store Operations & Catalog Hub</h1>
           <p>Real-time inventory levels, self-checkout transactions, and tamper-proof exit gate verification.</p>
         </div>
-        <div style="display:flex; gap:10px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
           <a href="shelf_tags.html" target="_blank" class="btn-secondary">🏷️ Printable Shelf Tags ↗</a>
           <button type="button" class="btn-secondary" id="btn-export-catalog">📥 Export CSV</button>
+          <label class="btn-secondary" style="margin:0; cursor:pointer; display:inline-flex; align-items:center;">
+            📤 Import CSV
+            <input type="file" id="catalog-csv-file-input" accept=".csv" style="display:none;" />
+          </label>
           <button type="button" class="btn-primary" onclick="window.SmartManager.openModal('add-product-modal')">
             <span>+ Add New SKU</span>
           </button>

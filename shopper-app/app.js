@@ -196,34 +196,63 @@
 
   // Load Server Config & Catalog
   async function loadInitialData() {
+    // 1. Load from localStorage if present
+    const savedCatalog = localStorage.getItem('smartscan_catalog');
+    if (savedCatalog) {
+      try {
+        const parsed = JSON.parse(savedCatalog);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          AppState.catalog = parsed;
+          renderSimulatorChips(AppState.catalog);
+        }
+      } catch (e) {}
+    }
+
     try {
-      const configRes = await fetch(`${API_BASE}/api/config`);
-      if (configRes.ok) {
-        const configData = await configRes.json();
-        if (configData.success) {
-          AppState.serverConfig = configData.data;
-          // Pre-fill demo info on login form
-          const phoneInput = document.getElementById('login-phone');
-          const passInput = document.getElementById('login-password');
-          if (phoneInput && configData.data.demoCredentials) {
-            phoneInput.value = configData.data.demoCredentials.phone;
-          }
-          if (passInput && configData.data.demoCredentials) {
-            passInput.value = configData.data.demoCredentials.password;
+      if (API_BASE) {
+        const configRes = await fetch(`${API_BASE}/api/config`).catch(() => null);
+        if (configRes && configRes.ok) {
+          const configData = await configRes.json();
+          if (configData.success) {
+            AppState.serverConfig = configData.data;
+            const phoneInput = document.getElementById('login-phone');
+            const passInput = document.getElementById('login-password');
+            if (phoneInput && configData.data.demoCredentials) {
+              phoneInput.value = configData.data.demoCredentials.phone;
+            }
+            if (passInput && configData.data.demoCredentials) {
+              passInput.value = configData.data.demoCredentials.password;
+            }
           }
         }
-      }
 
-      const prodRes = await fetch(`${API_BASE}/api/products`);
-      if (prodRes.ok) {
-        const prodData = await prodRes.json();
-        if (prodData.success) {
-          AppState.catalog = prodData.data;
-          renderSimulatorChips(AppState.catalog);
+        const prodRes = await fetch(`${API_BASE}/api/products`).catch(() => null);
+        if (prodRes && prodRes.ok) {
+          const prodData = await prodRes.json();
+          if (prodData.success && Array.isArray(prodData.data) && prodData.data.length > 0) {
+            AppState.catalog = prodData.data;
+            localStorage.setItem('smartscan_catalog', JSON.stringify(AppState.catalog));
+            renderSimulatorChips(AppState.catalog);
+          }
         }
       }
     } catch (e) {
       console.warn('Backend connection note:', e.message);
+    }
+
+    // Fallback load from sample_products.json if catalog is still minimal
+    if (!AppState.catalog || AppState.catalog.length <= 5) {
+      try {
+        const localRes = await fetch('./data/sample_products.json').catch(() => fetch('../data/sample_products.json'));
+        if (localRes && localRes.ok) {
+          const sampleData = await localRes.json();
+          if (Array.isArray(sampleData) && sampleData.length > 0) {
+            AppState.catalog = sampleData;
+            localStorage.setItem('smartscan_catalog', JSON.stringify(AppState.catalog));
+            renderSimulatorChips(AppState.catalog);
+          }
+        }
+      } catch (err) {}
     }
   }
 
