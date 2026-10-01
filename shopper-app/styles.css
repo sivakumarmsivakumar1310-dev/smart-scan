@@ -997,3 +997,690 @@ body {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ==========================================================================
+   DIGITAL TAX INVOICE & EXIT GATE PASS STYLES
+   ========================================================================== */
+.modal-content.invoice-modal-dialog {
+  max-width: 640px;
+  width: 95%;
+  padding: 18px 20px;
+  background: #0d1322;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+}
+
+.invoice-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.invoice-tab-group {
+  display: flex;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-glass);
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  gap: 4px;
+}
+
+.invoice-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.invoice-tab-btn:hover {
+  color: #fff;
+}
+
+.invoice-tab-btn.active {
+  background: linear-gradient(135deg, var(--primary), #059669);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+}
+
+/* Printable Tax Invoice Card */
+.tax-invoice-sheet {
+  background: #131b2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-bottom: 14px;
+}
+
+.invoice-store-brand {
+  text-align: center;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.18);
+  margin-bottom: 14px;
+}
+
+.invoice-logo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border-radius: 10px;
+  font-size: 1.2rem;
+  margin-bottom: 6px;
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.invoice-store-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.invoice-store-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.invoice-compliance-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.73rem;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+.invoice-compliance-row strong {
+  color: #cbd5e1;
+}
+
+.invoice-doc-type-tag {
+  display: inline-block;
+  margin-top: 8px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+}
+
+/* Invoice Meta Grid */
+.invoice-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.meta-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.meta-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.meta-value {
+  font-size: 0.84rem;
+  color: #fff;
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.meta-value.highlight {
+  color: #38bdf8;
+  font-family: monospace;
+  font-weight: 700;
+}
+
+.meta-value.payment-tag {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* Itemized Products Table */
+.invoice-table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 14px;
+}
+
+.invoice-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.invoice-items-table th {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: left;
+}
+
+.invoice-items-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  vertical-align: middle;
+}
+
+.tax-rate-chip {
+  display: inline-block;
+  background: rgba(99, 102, 241, 0.18);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #a5b4fc;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+/* Financial & Tax Breakdown Card */
+.invoice-financial-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.gst-tier-breakdown {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.gst-tier-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.gst-subtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.gst-subtable th {
+  color: var(--text-dim);
+  font-weight: 600;
+  padding: 4px 6px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gst-subtable td {
+  padding: 4px 6px;
+  color: #cbd5e1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.invoice-summary-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summary-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+
+.summary-line.discount-line {
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.invoice-savings-pill {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--primary);
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.summary-line.grand-total-line {
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding-top: 8px;
+  margin-top: 4px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fff;
+  align-items: center;
+}
+
+.grand-total-highlight {
+  color: var(--primary);
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.invoice-footer-note {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.4;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.invoice-action-bar {
+  display: flex;
+  gap: 10px;
+}
+
+.invoice-action-bar button {
+  flex: 1;
+}
+
+/* ==========================================================================
+   SECURITY EXIT GATE PASS STYLES
+   ========================================================================== */
+.exit-pass-card {
+  position: relative;
+  overflow: hidden;
+  background: #131b2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 20px;
+}
+
+.exit-pass-watermark {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-25deg);
+  font-size: 3rem;
+  font-weight: 900;
+  color: rgba(16, 185, 129, 0.06);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.exit-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  padding: 5px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.exit-qr-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 10px auto;
+}
+
+.exit-qr-container {
+  background: #fff;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  display: inline-block;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  position: relative;
+  z-index: 2;
+}
+
+.exit-qr-container img,
+.exit-qr-container canvas,
+.exit-qr-container svg {
+  display: block;
+  width: 170px;
+  height: 170px;
+  margin: 0 auto;
+}
+
+.token-copy-box {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.token-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.token-code {
+  display: block;
+  font-size: 0.74rem;
+  color: #38bdf8;
+  word-break: break-all;
+  font-family: monospace;
+  margin: 4px 0 6px 0;
+}
+
+.token-copy-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.token-copy-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.guard-bag-preview {
+  margin-top: 14px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+  padding-top: 12px;
+}
+
+.guard-preview-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.guard-items-scroll {
+  max-height: 110px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.guard-item-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: #e2e8f0;
+}
+
+/* ==========================================================================
+   ORDER HISTORY & LIFETIME INVOICE VAULT STYLES
+   ========================================================================== */
+.order-count-chip {
+  background: var(--primary);
+  color: #090d16;
+  font-weight: 800;
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  line-height: 1.2;
+}
+
+.history-stats-banner {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.stat-box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.stat-val {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.order-history-list-wrapper {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.order-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-empty-state {
+  text-align: center;
+  padding: 36px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border-glass);
+  border-radius: var(--radius-md);
+}
+
+.history-order-card {
+  background: #141c30;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  transition: var(--transition-fast);
+}
+
+.history-order-card:hover {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: #17223b;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.history-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.history-order-num {
+  color: #38bdf8;
+  font-family: monospace;
+  font-size: 0.88rem;
+}
+
+.history-status-pill {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--primary);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.history-latest-pill {
+  display: inline-block;
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.history-date-sub {
+  font-size: 0.73rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.history-card-total {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+.history-savings-tag {
+  font-size: 0.72rem;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.history-items-summary-row {
+  margin-bottom: 12px;
+}
+
+.history-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.history-item-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.history-item-chip.more {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+}
+
+.history-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.history-action-btn {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  border-radius: var(--radius-pill);
+  flex: 1;
+  min-width: 100px;
+  text-align: center;
+}
+
+.history-action-btn.copy-btn {
+  flex: 0 0 auto;
+  min-width: auto;
+  padding: 6px 10px;
+}
+
+/* ==========================================================================
+   PRINT MEDIA STYLESHEET (Clean official Tax Invoice on Paper/PDF)
+   ========================================================================== */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-tax-invoice,
+  #printable-tax-invoice * {
+    visibility: visible;
+  }
+
+  #printable-tax-invoice {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .invoice-store-brand,
+  .invoice-meta-grid,
+  .invoice-financial-card,
+  .invoice-footer-note {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #cccccc !important;
+  }
+
+  .invoice-store-title,
+  .meta-value,
+  .invoice-items-table th,
+  .invoice-items-table td,
+  .summary-line,
+  .grand-total-highlight {
+    color: #000000 !important;
+  }
+
+  .invoice-doc-type-tag,
+  .invoice-savings-pill,
+  .tax-rate-chip {
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    background: none !important;
+  }
+
+  .invoice-action-bar,
+  .invoice-header-bar,
+  .top-nav-bar,
+  .quick-simulator-bar,
+  .bottom-checkout-bar {
+    display: none !important;
+  }
+}

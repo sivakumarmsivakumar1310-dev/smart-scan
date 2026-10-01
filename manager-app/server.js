@@ -35,6 +35,7 @@ app.use(express.static(path.join(__dirname, '.')));
 let productsDB = [];
 let ordersDB = [];
 let auditLogsDB = [];
+let refundsDB = [];
 
 // Load sample dataset
 try {
@@ -533,6 +534,118 @@ app.get('/api/orders', (req, res) => {
     success: true,
     count: ordersDB.length,
     data: ordersDB
+  });
+});
+
+// Get Single Order for Return & Refund lookup
+app.get('/api/orders/:orderNumber', (req, res) => {
+  const { orderNumber } = req.params;
+  const order = ordersDB.find(o => o.orderNumber === orderNumber || o.orderId === orderNumber);
+  if (!order) {
+    return res.status(404).json({ success: false, error: `Order #${orderNumber} not found.` });
+  }
+  res.json({ success: true, data: order });
+});
+
+// ==========================================
+// 5. RETURNS & REFUNDS MANAGEMENT API
+// ==========================================
+
+// Process Item Return & Refund with automatic Stock Restock
+app.post('/api/returns/process', (req, res) => {
+  const { orderNumber, returnedItems = [], reason = 'Customer Return', managerName = 'Store Manager', refundMethod = 'Original UPI/Card' } = req.body;
+
+  if (!orderNumber || !Array.isArray(returnedItems) || returnedItems.length === 0) {
+    return res.status(400).json({ success: false, error: 'Order number and at least one returned item are required.' });
+  }
+
+  const order = ordersDB.find(o => o.orderNumber === orderNumber || o.orderId === orderNumber);
+  if (!order) {
+    return res.status(404).json({ success: false, error: `Order #${orderNumber} not found in system records.` });
+  }
+
+  let totalRefundAmount = 0;
+  const processedReturnItems = [];
+
+  for (const retItem of returnedItems) {
+    const qty = parseInt(retItem.quantity, 10) || 1;
+    const barcode = retItem.barcode;
+    const itemReason = retItem.reason || reason;
+
+    // Match item in original order
+    const orderItem = order.items ? order.items.find(i => i.barcode === barcode || i.name === retItem.name) : null;
+    const unitPrice = orderItem ? Number(orderItem.sellingPrice) : (Number(retItem.unitPrice) || 50);
+    const taxRate = orderItem ? Number(orderItem.taxRatePercent || 5) : 5;
+    const lineSubtotal = unitPrice * qty;
+    const lineTax = (lineSubtotal * taxRate) / 100;
+    const lineRefund = lineSubtotal + lineTax;
+
+    totalRefundAmount += lineRefund;
+
+    // Automatically replenish inventory stock in productsDB!
+    const product = productsDB.find(p => p.barcode === barcode || (orderItem && p.barcode === orderItem.barcode));
+    if (product) {
+      product.stockQuantity = (product.stockQuantity || 0) + qty;
+    }
+
+    processedReturnItems.push({
+      barcode: barcode || (product ? product.barcode : ''),
+      name: orderItem ? orderItem.name : (product ? product.name : retItem.name || 'Returned SKU'),
+      quantity: qty,
+      unitPrice,
+      taxRatePercent: taxRate,
+      refundAmount: Number(lineRefund.toFixed(2)),
+      reason: itemReason,
+      stockRestocked: true
+    });
+  }
+
+  const refundId = `REF-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  const newRefund = {
+    refundId,
+    orderNumber: order.orderNumber,
+    customerName: order.customerName || 'Valued Shopper',
+    customerPhone: order.customerPhone || '9876543210',
+    totalRefundAmount: Number(totalRefundAmount.toFixed(2)),
+    itemsReturned: processedReturnItems,
+    itemsCount: processedReturnItems.reduce((acc, curr) => acc + curr.quantity, 0),
+    refundMethod,
+    reason,
+    processedBy: managerName,
+    status: 'COMPLETED',
+    processedAt: new Date().toISOString()
+  };
+
+  refundsDB.unshift(newRefund);
+
+  // Update order status
+  order.refundHistory = order.refundHistory || [];
+  order.refundHistory.push(newRefund);
+  order.status = 'partially_refunded';
+
+  // Audit Logging
+  auditLogsDB.unshift({
+    id: `log_${Date.now()}`,
+    action: 'REFUND_PROCESSED',
+    details: `Processed Refund #${refundId} for Order #${order.orderNumber}: ₹${totalRefundAmount.toFixed(2)} (${newRefund.itemsCount} items returned & restocked)`,
+    user: managerName,
+    timestamp: new Date().toISOString()
+  });
+
+  res.status(201).json({
+    success: true,
+    message: `Refund #${refundId} of ₹${totalRefundAmount.toFixed(2)} approved! Inventory stock replenished automatically.`,
+    data: newRefund
+  });
+});
+
+// Get All Processed Returns & Refunds
+app.get('/api/returns', (req, res) => {
+  res.json({
+    success: true,
+    count: refundsDB.length,
+    data: refundsDB
   });
 });
 

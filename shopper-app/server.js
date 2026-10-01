@@ -313,13 +313,14 @@ app.post('/api/checkout', (req, res) => {
   let taxTotal = 0;
   let totalSavings = 0;
   const orderItems = [];
+  const taxRateMap = {};
 
   for (const item of cartItems) {
     const dbProduct = productsDB.find(p => p.barcode === item.barcode || p.id === item.id);
     const qty = parseInt(item.quantity, 10) || 1;
     const price = dbProduct ? dbProduct.sellingPrice : Number(item.sellingPrice);
     const mrp = dbProduct ? dbProduct.mrp : Number(item.mrp || price);
-    const taxRate = dbProduct ? (dbProduct.taxRatePercent || 5) : 5;
+    const taxRate = dbProduct ? (dbProduct.taxRatePercent || 5) : (Number(item.taxRatePercent) || 5);
 
     // Check & decrement stock
     if (dbProduct) {
@@ -340,41 +341,71 @@ app.post('/api/checkout', (req, res) => {
     taxTotal += itemTax;
     totalSavings += itemSavings;
 
+    if (!taxRateMap[taxRate]) {
+      taxRateMap[taxRate] = { taxable: 0, tax: 0 };
+    }
+    taxRateMap[taxRate].taxable += lineTotal;
+    taxRateMap[taxRate].tax += itemTax;
+
     orderItems.push({
       barcode: item.barcode,
       name: item.name,
+      brand: item.brand || (dbProduct ? dbProduct.brand : ''),
       unit: item.unit || '1 unit',
       quantity: qty,
       sellingPrice: price,
       mrp: mrp,
       taxRatePercent: taxRate,
-      lineTotal
+      taxAmount: Number(itemTax.toFixed(2)),
+      itemSavings: Number(itemSavings.toFixed(2)),
+      lineTotal: Number(lineTotal.toFixed(2))
     });
   }
 
-  const grandTotal = Math.max(0, subtotal + taxTotal - Number(appliedDiscount));
-  const orderNumber = `ORD-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const discountAmount = Number(appliedDiscount) || 0;
+  const grandTotal = Math.max(0, subtotal + taxTotal - discountAmount);
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const randSuffix = Math.floor(1000 + Math.random() * 9000);
+  const orderNumber = `ORD-${dateStr}-${randSuffix}`;
   const exitTokenData = generateExitVerificationToken(orderNumber, grandTotal.toFixed(2), customerPhone);
+
+  const gstBreakdown = Object.keys(taxRateMap).map(rate => ({
+    ratePercent: Number(rate),
+    taxableAmount: Number(taxRateMap[rate].taxable.toFixed(2)),
+    taxAmount: Number(taxRateMap[rate].tax.toFixed(2)),
+    cgstAmount: Number((taxRateMap[rate].tax / 2).toFixed(2)),
+    sgstAmount: Number((taxRateMap[rate].tax / 2).toFixed(2))
+  }));
 
   const newOrder = {
     orderId: `ord_${Date.now()}`,
     orderNumber,
-    customerName,
-    customerPhone,
     storeId: STORE_ID,
     storeName: STORE_NAME,
+    storeAddress: 'Smart Supermarket, Level 1, Retail Hub, Connaught Place, New Delhi',
+    storeGstin: '07AABCS1429B1Z8',
+    storeFssai: '10019011000123',
+    customerName: customerName || DEFAULT_SHOPPER_NAME,
+    customerPhone: customerPhone || DEFAULT_SHOPPER_PHONE,
     items: orderItems,
     itemCount: orderItems.reduce((sum, i) => sum + i.quantity, 0),
     subtotal: Number(subtotal.toFixed(2)),
     taxTotal: Number(taxTotal.toFixed(2)),
-    discountTotal: Number(appliedDiscount),
+    cgstTotal: Number((taxTotal / 2).toFixed(2)),
+    sgstTotal: Number((taxTotal / 2).toFixed(2)),
+    igstTotal: 0.00,
+    gstBreakdown,
+    discountTotal: discountAmount,
     totalAmount: Number(grandTotal.toFixed(2)),
-    totalSavings: Number(totalSavings.toFixed(2)),
+    totalSavings: Number((totalSavings + discountAmount).toFixed(2)),
     status: 'paid',
     payment: {
       method: paymentMethod,
-      transactionId: `TXN_${Date.now()}_${Math.floor(Math.random()*10000)}`,
-      paidAt: new Date().toISOString()
+      methodLabel: paymentMethod === 'upi' ? 'UPI Instant Pay' : (paymentMethod === 'card' ? 'Debit/Credit Card' : 'Fast Counter Cash'),
+      transactionId: `TXN_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`,
+      paidAt: now.toISOString(),
+      status: 'SUCCESS'
     },
     exitVerification: {
       token: exitTokenData.token,
@@ -383,7 +414,7 @@ app.post('/api/checkout', (req, res) => {
       verifiedAt: null,
       guardName: null
     },
-    createdAt: new Date().toISOString()
+    createdAt: now.toISOString()
   };
 
   ordersDB.unshift(newOrder);
@@ -394,19 +425,103 @@ app.post('/api/checkout', (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: 'Payment completed successfully. Digital invoice and Exit QR generated.',
+    message: 'Payment completed successfully. Digital tax invoice and Exit QR pass generated.',
     data: newOrder
   });
 });
 
-// Get order details
+// Get all orders (with optional customer phone filter)
+app.get('/api/orders', (req, res) => {
+  const { phone } = req.query;
+  let results = [...ordersDB];
+  if (phone) {
+    results = results.filter(o => o.customerPhone === phone.trim());
+  }
+  res.json({
+    success: true,
+    count: results.length,
+    data: results
+  });
+});
+
+// Get orders for a specific customer phone
+app.get('/api/orders/user/:phone', (req, res) => {
+  const { phone } = req.params;
+  const userOrders = ordersDB.filter(o => o.customerPhone === phone.trim());
+  res.json({
+    success: true,
+    count: userOrders.length,
+    data: userOrders
+  });
+});
+
+// Get specific order details
 app.get('/api/orders/:orderNumber', (req, res) => {
   const { orderNumber } = req.params;
-  const order = ordersDB.find(o => o.orderNumber === orderNumber);
+  const order = ordersDB.find(o => o.orderNumber === orderNumber || o.orderId === orderNumber);
   if (!order) {
     return res.status(404).json({ success: false, error: 'Order not found.' });
   }
   res.json({ success: true, data: order });
+});
+
+// ==========================================
+// 4. REAL-TIME SMS & WHATSAPP BILL NOTIFICATIONS
+// ==========================================
+app.post('/api/notifications/send-bill', (req, res) => {
+  const { orderNumber, phone, channel = 'both' } = req.body;
+
+  if (!orderNumber) {
+    return res.status(400).json({ success: false, error: 'Order number is required.' });
+  }
+
+  const order = ordersDB.find(o => o.orderNumber === orderNumber || o.orderId === orderNumber);
+  const targetPhone = phone || (order ? order.customerPhone : '9876543210');
+  const customerName = order ? order.customerName : 'Valued Shopper';
+  const totalAmount = order ? order.totalAmount.toFixed(2) : '0.00';
+  const totalSavings = order ? order.totalSavings.toFixed(2) : '0.00';
+  const itemCount = order ? order.itemCount : 1;
+  const exitToken = order?.exitVerification?.token || `SMARTSCAN-EXIT-${orderNumber}`;
+  const storeName = order ? order.storeName : STORE_NAME;
+
+  const now = new Date();
+  const timeFormatted = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const dateFormatted = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  // Generate realistic SMS & WhatsApp bill payload
+  const whatsappMessage = `*⚡ ${storeName}*\n\n` +
+    `Hello *${customerName}*,\n` +
+    `Your digital tax invoice for *Order #${orderNumber}* has been generated successfully.\n\n` +
+    `🛒 *Items Billed:* ${itemCount} items\n` +
+    `💰 *Grand Total Paid:* ₹${totalAmount}\n` +
+    `🎉 *Total Savings:* ₹${totalSavings}\n` +
+    `⏱️ *Time:* ${dateFormatted} at ${timeFormatted}\n\n` +
+    `🛡️ *Exit Gate Pass Token:*\n` +
+    `\`${exitToken}\`\n\n` +
+    `🔗 *View Live Bill & QR Exit Pass:* http://localhost:${PORT}/?order=${orderNumber}\n\n` +
+    `_Thank you for shopping with SmartScan Self-Checkout!_`;
+
+  const smsMessage = `[${storeName}] Order #${orderNumber} Confirmed! Paid ₹${totalAmount} for ${itemCount} items (Saved ₹${totalSavings}). Exit Pass: ${exitToken}. View invoice: http://localhost:${PORT}/?order=${orderNumber}`;
+
+  const messageId = `MSG_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+
+  res.json({
+    success: true,
+    message: `Digital bill alert successfully dispatched via ${channel.toUpperCase()} to +91 ${targetPhone}.`,
+    data: {
+      messageId,
+      orderNumber,
+      recipientPhone: targetPhone,
+      customerName,
+      channel,
+      status: 'DELIVERED',
+      deliveredAt: now.toISOString(),
+      content: {
+        whatsapp: whatsappMessage,
+        sms: smsMessage
+      }
+    }
+  });
 });
 
 // Start Server

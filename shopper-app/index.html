@@ -17,6 +17,8 @@
 
   <!-- Html5Qrcode Barcode & QR Engine CDN -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- QRCode.js Generator for Standard Scannable Exit Pass QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <!-- Stylesheet -->
   <link rel="stylesheet" href="styles.css" />
@@ -32,8 +34,18 @@
       <span>SmartScan<span style="color:var(--primary);">.Shopper</span></span>
     </div>
 
-    <div class="top-user-pill" id="header-user-pill">
-      <span>🛍️ Customer PWA</span>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button type="button" class="btn-secondary" id="btn-header-list" style="padding:5px 12px; font-size:0.75rem; border-radius:var(--radius-pill); display:flex; align-items:center; gap:5px;" onclick="window.SmartShopper.openShoppingListModal()" title="Smart Shopping List & Aisle Navigation Map">
+        <span>📋 List & Map</span>
+        <span class="order-count-chip" id="header-list-badge" style="background:#818cf8; color:#0f172a;">0</span>
+      </button>
+      <button type="button" class="btn-secondary" id="btn-header-history" style="padding:5px 12px; font-size:0.75rem; border-radius:var(--radius-pill); display:flex; align-items:center; gap:6px;" onclick="window.SmartShopper.openOrderHistoryModal()" title="View Complete Order History & Past Bills">
+        <span>📜 History</span>
+        <span class="order-count-chip" id="header-orders-badge">0</span>
+      </button>
+      <div class="top-user-pill" id="header-user-pill">
+        <span>🛍️ Customer PWA</span>
+      </div>
     </div>
   </header>
 
@@ -146,9 +158,19 @@
             <span class="store-tag">📍 Smart Supermarket • Store #104</span>
           </div>
         </div>
-        <button type="button" class="btn-secondary" id="btn-logout" style="padding:6px 10px; font-size:0.75rem;">
-          Exit Store
-        </button>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <button type="button" class="btn-secondary" id="btn-session-list" style="padding:6px 12px; font-size:0.75rem; display:flex; align-items:center; gap:5px;" onclick="window.SmartShopper.openShoppingListModal()" title="Smart Shopping List & In-Store Aisle Map">
+            <span>📋 Smart List</span>
+            <span class="order-count-chip" id="session-list-badge" style="background:#818cf8; color:#0f172a;">0</span>
+          </button>
+          <button type="button" class="btn-secondary" id="btn-session-history" style="padding:6px 12px; font-size:0.75rem; display:flex; align-items:center; gap:5px;" onclick="window.SmartShopper.openOrderHistoryModal()" title="View Past Invoices">
+            <span>📜 Past Bills</span>
+            <span class="order-count-chip" id="session-orders-badge">0</span>
+          </button>
+          <button type="button" class="btn-secondary" id="btn-logout" style="padding:6px 10px; font-size:0.75rem;">
+            Exit Store
+          </button>
+        </div>
       </div>
 
       <!-- Camera Barcode Scanner Viewport -->
@@ -371,53 +393,462 @@
   </div>
 
   <!-- =========================================================================
-       MODAL 2: TAMPER-PROOF DIGITAL INVOICE & EXIT GATE PASS
+       MODAL 2: DIGITAL TAX INVOICE & CRYPTOGRAPHIC EXIT GATE PASS
        ========================================================================= -->
   <div id="exit-pass-modal" class="modal-backdrop">
-    <div class="modal-content" style="max-width:420px;">
+    <div class="modal-content invoice-modal-dialog">
       
-      <div class="exit-pass-card">
-        <div class="exit-pass-watermark">PAID & VERIFIED</div>
+      <!-- Modal Navigation Header -->
+      <div class="modal-header invoice-header-bar">
+        <div class="invoice-tab-group">
+          <button type="button" class="invoice-tab-btn active" id="btn-tab-invoice" onclick="window.SmartShopper.switchInvoiceTab('invoice')">
+            🧾 Digital Tax Invoice
+          </button>
+          <button type="button" class="invoice-tab-btn" id="btn-tab-gatepass" onclick="window.SmartShopper.switchInvoiceTab('gatepass')">
+            🛡️ Security Gate Pass
+          </button>
+        </div>
+        <button type="button" class="close-btn" onclick="window.SmartShopper.closeModal('exit-pass-modal')" title="Close">✕</button>
+      </div>
 
-        <div style="text-align:center;">
-          <div class="exit-status-pill">
-            <span>●</span> <span>PAID & AUTHENTICATED</span>
+      <!-- VIEW A: DETAILED DIGITAL BILL / TAX INVOICE -->
+      <div id="view-digital-invoice" class="invoice-container-view">
+        <div class="tax-invoice-sheet" id="printable-tax-invoice">
+          
+          <!-- Store Official Header -->
+          <div class="invoice-store-brand">
+            <div class="invoice-logo-badge">⚡</div>
+            <h2 class="invoice-store-title" id="inv-store-name">Smart Supermarket • Central Hub</h2>
+            <p class="invoice-store-sub" id="inv-store-address">Smart Supermarket, Level 1, Retail Hub, Connaught Place, New Delhi</p>
+            <div class="invoice-compliance-row">
+              <span>GSTIN: <strong id="inv-store-gstin">07AABCS1429B1Z8</strong></span>
+              <span>•</span>
+              <span>FSSAI Lic: <strong id="inv-store-fssai">10019011000123</strong></span>
+              <span>•</span>
+              <span>Store ID: <strong id="inv-store-id">STORE_104</strong></span>
+            </div>
+            <div class="invoice-doc-type-tag">TAX INVOICE / DIGITAL RECEIPT</div>
           </div>
 
-          <h2 style="font-size:1.3rem; font-weight:800; color:#fff;">Security Gate Exit Pass</h2>
-          <div style="font-size:0.78rem; color:var(--text-muted);">Smart Supermarket • Order #<span id="pass-order-num">ORD-0000</span></div>
-
-          <!-- Cryptographic Exit QR Container -->
-          <div class="exit-qr-container" id="pass-qr-box">
-            <!-- Rendered SVG QR via JS -->
+          <!-- Order & Customer Meta Grid -->
+          <div class="invoice-meta-grid">
+            <div class="meta-block">
+              <span class="meta-label">Invoice / Order #</span>
+              <strong class="meta-value highlight" id="inv-order-num">ORD-00000000-0000</strong>
+            </div>
+            <div class="meta-block">
+              <span class="meta-label">Date & Dynamic Timestamp</span>
+              <strong class="meta-value" id="inv-timestamp">--:--:--</strong>
+            </div>
+            <div class="meta-block">
+              <span class="meta-label">Customer Billed To</span>
+              <strong class="meta-value" id="inv-customer-info">Alex Sharma (+91 9876543210)</strong>
+            </div>
+            <div class="meta-block">
+              <span class="meta-label">Payment Mode & Ref</span>
+              <strong class="meta-value payment-tag" id="inv-payment-info">UPI (TXN_000000) • PAID</strong>
+            </div>
           </div>
 
-          <div>
-            <span class="exit-timer-chip">Time: <span id="pass-date">12:00:00</span></span>
+          <!-- Itemized Purchased Products Table -->
+          <div class="invoice-table-wrapper">
+            <table class="invoice-items-table">
+              <thead>
+                <tr>
+                  <th style="width:40px;">#</th>
+                  <th>Item Description</th>
+                  <th style="text-align:center;">Qty</th>
+                  <th style="text-align:right;">Unit Price</th>
+                  <th style="text-align:right;">GST Rate</th>
+                  <th style="text-align:right;">Line Total</th>
+                </tr>
+              </thead>
+              <tbody id="inv-items-tbody">
+                <!-- Dynamically populated right after checkout -->
+              </tbody>
+            </table>
           </div>
+
+          <!-- Tax Calculation & Financial Summary -->
+          <div class="invoice-financial-card">
+            
+            <!-- Itemized GST Tax Summary Tier -->
+            <div class="gst-tier-breakdown" id="inv-gst-breakdown-box">
+              <div class="gst-tier-header">GST Tax Breakdown (Itemized)</div>
+              <div id="inv-gst-rows">
+                <!-- Populated dynamically: CGST / SGST rates -->
+              </div>
+            </div>
+
+            <div class="invoice-summary-lines">
+              <div class="summary-line">
+                <span>Items Subtotal (Taxable Value):</span>
+                <span id="inv-subtotal">₹0.00</span>
+              </div>
+              <div class="summary-line">
+                <span>Total GST / Tax (CGST + SGST):</span>
+                <span id="inv-tax-total">₹0.00</span>
+              </div>
+              <div class="summary-line discount-line" id="inv-discount-row" style="display:none;">
+                <span>Coupon / Promo Discount:</span>
+                <span id="inv-discount-val">-₹0.00</span>
+              </div>
+              
+              <!-- Total Savings Banner -->
+              <div class="invoice-savings-pill" id="inv-savings-pill">
+                <span>🎉</span> <span>Total Savings on this Purchase: <strong id="inv-savings-val">₹0.00</strong></span>
+              </div>
+
+              <!-- Final Grand Total -->
+              <div class="summary-line grand-total-line">
+                <span>Final Grand Total (Incl. GST):</span>
+                <span class="grand-total-highlight" id="inv-grand-total">₹0.00</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Footer Legal & Thermal Barcode Footer -->
+          <div class="invoice-footer-note">
+            <p>Thank you for shopping with SmartScan Self-Checkout! This is a system-generated electronic tax invoice.</p>
+            <p>Scan the Exit Gate Pass QR code below at Security Gate 01 for seamless egress.</p>
+          </div>
+
         </div>
 
-        <div style="margin-top:16px; border-top:1px dashed var(--border-glass); padding-top:12px;">
-          <div style="display:flex; justify-content:space-between; font-size:0.88rem; margin-bottom:6px;">
-            <span style="color:var(--text-muted);">Total Amount Paid:</span>
-            <strong id="pass-total" style="color:var(--primary); font-size:1.05rem;">₹0.00</strong>
-          </div>
-          <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:10px;">
-            <span style="color:var(--text-muted);">Billed Items:</span>
-            <span id="pass-items-count" style="color:#fff; font-weight:600;">0 items</span>
-          </div>
-
-          <div id="pass-items-summary" style="max-height:100px; overflow-y:auto; background:rgba(0,0,0,0.3); border-radius:8px; padding:8px;">
-            <!-- Summary list -->
-          </div>
-        </div>
-
-        <div style="margin-top:16px;">
-          <button type="button" class="btn-primary" style="width:100%;" onclick="window.SmartShopper.closeModal('exit-pass-modal')">
-            <span>Done / Return to Cart</span>
+        <!-- Invoice Action Bar -->
+        <div class="invoice-action-bar">
+          <button type="button" class="btn-secondary" onclick="window.SmartShopper.printInvoice()">
+            <span>🖨️ Print / Save PDF</span>
+          </button>
+          <button type="button" class="btn-secondary" style="background:rgba(34, 197, 94, 0.15); border-color:#22c55e; color:#4ade80;" onclick="window.SmartShopper.openNotificationDialog()">
+            <span>📲 WhatsApp / SMS e-Bill</span>
+          </button>
+          <button type="button" class="btn-primary" onclick="window.SmartShopper.switchInvoiceTab('gatepass')">
+            <span>🛡️ Show Exit QR →</span>
           </button>
         </div>
 
+      </div>
+
+      <!-- VIEW B: CRYPTOGRAPHIC EXIT GATE PASS -->
+      <div id="view-exit-gatepass" class="gatepass-container-view" style="display:none;">
+        <div class="exit-pass-card">
+          <div class="exit-pass-watermark">PAID & VERIFIED</div>
+
+          <div style="text-align:center;">
+            <div class="exit-status-pill">
+              <span class="pulse-dot"></span>
+              <span>AUTHENTICATED • READY AT GATE</span>
+            </div>
+
+            <h2 style="font-size:1.35rem; font-weight:900; color:#fff; margin-bottom:2px;">Security Gate Exit Pass</h2>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">
+              Present this tamper-proof QR code to the Security Guard
+            </div>
+
+            <!-- Cryptographic Exit QR Container -->
+            <div class="exit-qr-wrapper">
+              <div class="exit-qr-container" id="pass-qr-box">
+                <!-- Rendered QR Matrix via JS -->
+              </div>
+              <div class="qr-glow-ring"></div>
+            </div>
+
+            <!-- Order & Token details -->
+            <div style="margin-top:10px;">
+              <div class="exit-timer-chip">
+                <span>⏱️ Issued at: <strong id="pass-timestamp-val">12:00:00</strong></span>
+              </div>
+            </div>
+
+            <div class="token-copy-box">
+              <div class="token-label">Cryptographic Token (SHA-256 Signed):</div>
+              <code class="token-code" id="pass-token-text">SMARTSCAN-EXIT-...</code>
+              <button type="button" class="token-copy-btn" id="btn-copy-token" onclick="window.SmartShopper.copyExitToken()" title="Copy token to test in Security Guard App">
+                📋 Copy Token
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Bag Audit Summary for Guard -->
+          <div class="guard-bag-preview">
+            <div class="guard-preview-header">
+              <span>Billed Items Summary (<span id="pass-items-count">0 items</span>)</span>
+              <strong id="pass-total-badge" style="color:var(--primary);">₹0.00</strong>
+            </div>
+            <div id="pass-items-summary" class="guard-items-scroll">
+              <!-- Summary list for guard reference -->
+            </div>
+          </div>
+
+          <!-- Bottom Finish Actions -->
+          <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn-secondary" style="flex:1;" onclick="window.SmartShopper.switchInvoiceTab('invoice')">
+              <span>🧾 Full Invoice</span>
+            </button>
+            <button type="button" class="btn-secondary" style="background:rgba(34, 197, 94, 0.15); border-color:#22c55e; color:#4ade80;" onclick="window.SmartShopper.openNotificationDialog()">
+              <span>📲 Send to Phone</span>
+            </button>
+            <button type="button" class="btn-primary" style="flex:1;" onclick="window.SmartShopper.finishShopping()">
+              <span>✓ Done / New Trip</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 3: ORDER HISTORY & LIFETIME INVOICE VAULT
+       ========================================================================= -->
+  <div id="order-history-modal" class="modal-backdrop">
+    <div class="modal-content" style="max-width:620px; width:95%;">
+      
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.3rem;">📜</span>
+          <div>
+            <h3 class="modal-title" style="margin:0;">Order History & Past Bills</h3>
+            <span style="font-size:0.75rem; color:var(--text-muted);">All your electronic invoices & exit passes saved permanently</span>
+          </div>
+        </div>
+        <button type="button" class="close-btn" onclick="window.SmartShopper.closeModal('order-history-modal')">✕</button>
+      </div>
+
+      <!-- Lifetime Stats Card -->
+      <div class="history-stats-banner">
+        <div class="stat-box">
+          <span class="stat-label">Total Completed Orders</span>
+          <strong class="stat-val" id="history-total-orders">0</strong>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Lifetime Spend</span>
+          <strong class="stat-val" id="history-total-spend" style="color:#fff;">₹0.00</strong>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Total Savings</span>
+          <strong class="stat-val" id="history-total-savings" style="color:var(--primary);">₹0.00</strong>
+        </div>
+      </div>
+
+      <!-- Order List Container -->
+      <div class="order-history-list-wrapper">
+        <div id="order-history-list" class="order-history-list">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+        <button type="button" class="btn-secondary" style="padding:8px 18px;" onclick="window.SmartShopper.closeModal('order-history-modal')">
+          <span>Close History</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 4: SMART SHOPPING LIST & AISLE MAP NAVIGATION
+       ========================================================================= -->
+  <div id="shopping-list-modal" class="modal-backdrop">
+    <div class="modal-content" style="max-width:680px; width:95%;">
+      
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.4rem;">📋</span>
+          <div>
+            <h3 class="modal-title" style="margin:0;">Smart Shopping List & Aisle Finder</h3>
+            <span style="font-size:0.75rem; color:var(--text-muted);">Real-time in-store location mapping & inventory cross-referencing</span>
+          </div>
+        </div>
+        <button type="button" class="close-btn" onclick="window.SmartShopper.closeModal('shopping-list-modal')">✕</button>
+      </div>
+
+      <!-- Add Item Form -->
+      <form id="shopping-list-form" style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="shopping-list-input" class="input-text" placeholder="Type item to buy (e.g. Milk, Sourdough, Almonds, Coffee, Olive Oil)..." required />
+        <button type="submit" class="btn-primary" style="white-space:nowrap; padding:0 18px;">
+          <span>+ Add Item</span>
+        </button>
+      </form>
+
+      <!-- Quick Suggested Items Chips -->
+      <div style="margin-bottom:14px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+        <span style="font-size:0.72rem; color:var(--text-muted);">Quick Add:</span>
+        <button type="button" class="suggestion-chip" onclick="window.SmartShopper.addQuickListItem('Whole Milk')">+ 🥛 Whole Milk</button>
+        <button type="button" class="suggestion-chip" onclick="window.SmartShopper.addQuickListItem('Sourdough')">+ 🍞 Sourdough Bread</button>
+        <button type="button" class="suggestion-chip" onclick="window.SmartShopper.addQuickListItem('California Almonds')">+ 🥜 Roasted Almonds</button>
+        <button type="button" class="suggestion-chip" onclick="window.SmartShopper.addQuickListItem('Arabica Coffee')">+ ☕ Arabica Coffee</button>
+        <button type="button" class="suggestion-chip" onclick="window.SmartShopper.addQuickListItem('Olive Oil')">+ 🫒 Olive Oil</button>
+      </div>
+
+      <!-- Tabs: List vs Store Floor Map -->
+      <div class="list-map-tabs">
+        <button type="button" class="list-map-tab-btn active" id="tab-btn-slist" onclick="window.SmartShopper.switchListTab('list')">
+          📝 My Checklist (<span id="slist-count-label">0</span>)
+        </button>
+        <button type="button" class="list-map-tab-btn" id="tab-btn-smap" onclick="window.SmartShopper.switchListTab('map')">
+          🗺️ Interactive Supermarket Aisle Map
+        </button>
+      </div>
+
+      <!-- VIEW 1: Interactive Checklist with Aisle Badges -->
+      <div id="view-slist-checklist">
+        <div id="shopping-list-items-container" class="shopping-list-container">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:10px; border-top:1px solid var(--border-glass);">
+          <button type="button" class="btn-secondary" style="font-size:0.75rem; padding:6px 12px;" onclick="window.SmartShopper.clearShoppingList()">
+            🗑️ Clear List
+          </button>
+          <div style="font-size:0.84rem; color:var(--text-muted);">
+            Estimated Total: <strong id="slist-estimated-total" style="color:var(--primary); font-size:0.95rem;">₹0.00</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: Interactive Supermarket Aisle Navigation Map -->
+      <div id="view-slist-map" style="display:none;">
+        <div class="store-map-card">
+          <div class="store-map-header">
+            <span>📍 Smart Supermarket • Store #104 Floor Plan</span>
+            <span style="font-size:0.72rem; color:var(--primary);">● Glowing zones show items on your list</span>
+          </div>
+
+          <!-- Floor Plan Layout Visualizer -->
+          <div class="floor-plan-schematic">
+            
+            <div class="map-zone entrance-zone">
+              <span class="zone-icon">🚪</span>
+              <span class="zone-title">Main Entrance & Smart Carts</span>
+            </div>
+
+            <div class="aisles-grid">
+              <!-- Aisle 1 -->
+              <div class="aisle-block" id="map-aisle-1">
+                <div class="aisle-num">AISLE 1</div>
+                <div class="aisle-category">Bakery & Fresh Produce</div>
+                <div class="aisle-pin" id="pin-aisle-1" style="display:none;">📍 <span>0 items</span></div>
+              </div>
+
+              <!-- Aisle 2 -->
+              <div class="aisle-block" id="map-aisle-2">
+                <div class="aisle-num">AISLE 2</div>
+                <div class="aisle-category">Dairy, Milk & Cold Storage</div>
+                <div class="aisle-pin" id="pin-aisle-2" style="display:none;">📍 <span>0 items</span></div>
+              </div>
+
+              <!-- Aisle 3 -->
+              <div class="aisle-block" id="map-aisle-3">
+                <div class="aisle-num">AISLE 3</div>
+                <div class="aisle-category">Beverages, Tea & Coffee</div>
+                <div class="aisle-pin" id="pin-aisle-3" style="display:none;">📍 <span>0 items</span></div>
+              </div>
+
+              <!-- Aisle 4 -->
+              <div class="aisle-block" id="map-aisle-4">
+                <div class="aisle-num">AISLE 4</div>
+                <div class="aisle-category">Snacks, Nuts & Dry Fruits</div>
+                <div class="aisle-pin" id="pin-aisle-4" style="display:none;">📍 <span>0 items</span></div>
+              </div>
+
+              <!-- Aisle 5 -->
+              <div class="aisle-block" id="map-aisle-5">
+                <div class="aisle-num">AISLE 5</div>
+                <div class="aisle-category">Gourmet Cooking & Spices</div>
+                <div class="aisle-pin" id="pin-aisle-5" style="display:none;">📍 <span>0 items</span></div>
+              </div>
+            </div>
+
+            <div class="map-zone exit-zone">
+              <span class="zone-icon">🛡️</span>
+              <span class="zone-title">Security Exit Gate 01 & Fast Kiosks</span>
+            </div>
+
+          </div>
+
+          <div id="map-matched-locations-summary" style="margin-top:12px; font-size:0.78rem; color:#cbd5e1;">
+            <!-- Summary of aisle navigation -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div style="margin-top:14px; display:flex; justify-content:flex-end;">
+        <button type="button" class="btn-primary" style="padding:8px 22px;" onclick="window.SmartShopper.closeModal('shopping-list-modal')">
+          <span>Done / Back to Scanning</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL 5: REAL-TIME SMS & WHATSAPP BILL NOTIFICATION SIMULATOR
+       ========================================================================= -->
+  <div id="notification-modal" class="modal-backdrop">
+    <div class="modal-content" style="max-width:520px; width:95%;">
+      
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.4rem;">📲</span>
+          <div>
+            <h3 class="modal-title" style="margin:0;">Send Digital Bill Alert</h3>
+            <span style="font-size:0.75rem; color:var(--text-muted);">Real-time SMS & WhatsApp notification with cryptographic Exit Pass</span>
+          </div>
+        </div>
+        <button type="button" class="close-btn" onclick="window.SmartShopper.closeModal('notification-modal')">✕</button>
+      </div>
+
+      <!-- Notification Channel Options -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:6px;">Select Alert Channel:</label>
+        <div class="notif-channel-group">
+          <button type="button" class="notif-channel-btn active" id="notif-ch-both" onclick="window.SmartShopper.setNotifChannel('both')">
+            📱 WhatsApp & SMS
+          </button>
+          <button type="button" class="notif-channel-btn" id="notif-ch-whatsapp" onclick="window.SmartShopper.setNotifChannel('whatsapp')">
+            💬 WhatsApp Only
+          </button>
+          <button type="button" class="notif-channel-btn" id="notif-ch-sms" onclick="window.SmartShopper.setNotifChannel('sms')">
+            📨 SMS Only
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Number Field -->
+      <div class="input-field-group" style="margin-bottom:14px;">
+        <label for="notif-phone-input">Customer Mobile Number</label>
+        <input type="tel" id="notif-phone-input" class="input-text" placeholder="9876543210" value="9876543210" required />
+      </div>
+
+      <!-- Live Message Preview Box -->
+      <div class="notif-preview-box">
+        <div class="preview-header">
+          <span id="preview-app-title">🟢 WhatsApp Business Message Preview</span>
+          <span style="font-size:0.7rem; color:var(--text-muted);">Simulated Live</span>
+        </div>
+
+        <div class="chat-bubble-container">
+          <div class="chat-bubble" id="notif-chat-preview-text">
+            <!-- Rendered formatted message -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="margin-top:16px; display:flex; gap:10px;">
+        <button type="button" class="btn-secondary" style="flex:1;" onclick="window.SmartShopper.closeModal('notification-modal')">
+          <span>Cancel</span>
+        </button>
+        <button type="button" class="btn-primary" id="btn-trigger-notif" style="flex:1; background:linear-gradient(135deg, #22c55e, #16a34a);" onclick="window.SmartShopper.dispatchNotification()">
+          <span>🚀 Dispatch Alert Now</span>
+        </button>
       </div>
 
     </div>
