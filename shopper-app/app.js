@@ -1843,6 +1843,19 @@
 
     const btnConfirmCounter = document.getElementById('btn-confirm-counter');
     if (btnConfirmCounter) btnConfirmCounter.addEventListener('click', () => executeCheckout('counter'));
+
+    // Smart Shopping List Form Submit
+    const listForm = document.getElementById('shopping-list-form');
+    if (listForm) {
+      listForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('shopping-list-input');
+        if (input && input.value.trim()) {
+          addShoppingListItem(input.value.trim());
+          input.value = '';
+        }
+      });
+    }
   }
 
   // Public Interface
@@ -1859,6 +1872,16 @@
     viewPastOrder,
     copySpecificOrderToken,
     loadOrderHistory,
+    openShoppingListModal,
+    addQuickListItem,
+    switchListTab,
+    clearShoppingList,
+    toggleShoppingListItem,
+    removeShoppingListItem,
+    addListProductToCart,
+    openNotificationDialog,
+    setNotifChannel,
+    dispatchNotification,
     showLastInvoice: () => {
       if (AppState.orders && AppState.orders.length > 0) {
         displayDigitalInvoiceAndExitPass(AppState.orders[0]);
@@ -1885,5 +1908,26 @@
     loadInitialData();
     restoreSession();
     loadOrderHistory();
+    loadShoppingList();
+
+    // Check for direct order parameter in URL (?order=ORD-...)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlOrderNum = urlParams.get('order');
+    if (urlOrderNum) {
+      setTimeout(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(urlOrderNum)}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              displayDigitalInvoiceAndExitPass(json.data);
+              return;
+            }
+          }
+        } catch (e) {}
+        const localMatch = (AppState.orders || []).find(o => o.orderNumber === urlOrderNum);
+        if (localMatch) displayDigitalInvoiceAndExitPass(localMatch);
+      }, 400);
+    }
   });
 })();
