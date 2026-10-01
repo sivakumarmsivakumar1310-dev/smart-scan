@@ -562,6 +562,95 @@
     </div>
   </div>
 
+  <!-- =========================================================================
+       MODAL: EDIT EXISTING SKU (Full Details Update)
+       ========================================================================= -->
+  <div id="edit-product-modal" class="modal-backdrop">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.3rem;">✏️</span>
+          <h3 class="modal-title" style="margin:0;">Edit Product Details</h3>
+        </div>
+        <button type="button" class="close-btn" onclick="window.SmartManager.closeModal('edit-product-modal')">✕</button>
+      </div>
+
+      <form id="edit-product-form">
+        <input type="hidden" id="edit-sku-id" />
+
+        <div class="input-field-group">
+          <label for="edit-sku-barcode">Barcode (EAN-13 / SKU Code)</label>
+          <input type="text" id="edit-sku-barcode" class="input-text" style="font-family:monospace; background:rgba(0,0,0,0.4);" readonly required />
+        </div>
+
+        <div class="input-field-group">
+          <label for="edit-sku-name">Product Name</label>
+          <input type="text" id="edit-sku-name" class="input-text" placeholder="e.g. Pure Honey 500g" required />
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <div class="input-field-group" style="flex:1;">
+            <label for="edit-sku-category">Category</label>
+            <select id="edit-sku-category" class="filter-select" style="width:100%;">
+              <option value="Dairy & Eggs">Dairy & Eggs</option>
+              <option value="Bakery">Bakery</option>
+              <option value="Snacks & Dry Fruits">Snacks & Dry Fruits</option>
+              <option value="Beverages">Beverages</option>
+              <option value="Gourmet & Cooking">Gourmet & Cooking</option>
+              <option value="Personal Care">Personal Care</option>
+              <option value="Fresh Produce">Fresh Produce</option>
+              <option value="Household & Cleaning">Household & Cleaning</option>
+            </select>
+          </div>
+          <div class="input-field-group" style="flex:1;">
+            <label for="edit-sku-unit">Unit / Size</label>
+            <input type="text" id="edit-sku-unit" class="input-text" placeholder="e.g. 500g, 1L" required />
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <div class="input-field-group" style="flex:1;">
+            <label for="edit-sku-cost">Cost Price (₹)</label>
+            <input type="number" step="0.01" id="edit-sku-cost" class="input-text" placeholder="70.00" />
+          </div>
+          <div class="input-field-group" style="flex:1;">
+            <label for="edit-sku-selling">Selling Price (₹)</label>
+            <input type="number" step="0.01" id="edit-sku-selling" class="input-text" placeholder="99.00" required />
+          </div>
+          <div class="input-field-group" style="flex:1;">
+            <label for="edit-sku-mrp">MRP (₹)</label>
+            <input type="number" step="0.01" id="edit-sku-mrp" class="input-text" placeholder="110.00" />
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <div class="input-field-group" style="flex:1;">
+            <label for="edit-sku-stock">Stock Level (Qty)</label>
+            <input type="number" id="edit-sku-stock" class="input-text" placeholder="50" required />
+          </div>
+          <div class="input-field-group" style="flex:1;">
+            <label for="edit-sku-threshold">Low Threshold</label>
+            <input type="number" id="edit-sku-threshold" class="input-text" placeholder="10" />
+          </div>
+        </div>
+
+        <div class="input-field-group">
+          <label for="edit-sku-shelf">Aisle / Shelf Location</label>
+          <input type="text" id="edit-sku-shelf" class="input-text" placeholder="e.g. Aisle 3 - Shelf B" />
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:14px;">
+          <button type="button" class="btn-secondary" style="flex:1;" onclick="window.SmartManager.closeModal('edit-product-modal')">
+            <span>Cancel</span>
+          </button>
+          <button type="submit" class="btn-primary" style="flex:1; background:linear-gradient(135deg, var(--secondary), #4f46e5);">
+            <span>💾 Save Changes</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Application Scripts -->
   <script src="scanner.js"></script>
   <script src="app.js"></script>

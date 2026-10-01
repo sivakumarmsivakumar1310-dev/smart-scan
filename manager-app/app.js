@@ -350,7 +350,8 @@
             <span class="stock-badge ${isLow ? 'low' : 'good'}">${p.stockQuantity} in stock</span>
           </td>
           <td><span style="font-size:0.8rem; color:var(--text-muted);">${p.shelfLocation || 'General'}</span></td>
-          <td style="text-align:right;">
+          <td style="text-align:right; white-space:nowrap;">
+            <button type="button" class="btn-secondary" style="padding:4px 8px; font-size:0.75rem; background:rgba(99, 102, 241, 0.15); border-color:var(--secondary); color:#a5b4fc;" onclick="window.SmartManager.openEditProductModal('${p.id || p.barcode}')" title="Edit SKU Details">✏️ Edit</button>
             <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.SmartManager.adjustStock('${p.id}', 10)">+10</button>
             <button class="btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="window.SmartManager.adjustStock('${p.id}', -5)">-5</button>
             <button class="btn-danger" style="padding:4px 8px; font-size:0.75rem; margin-left:4px;" onclick="window.SmartManager.deleteSKU('${p.id}')">✕</button>
@@ -446,6 +447,96 @@
         });
       }
     } catch (err) {}
+  }
+
+  // Open Edit SKU Modal
+  function openEditProductModal(productId) {
+    const p = (AppState.catalog || []).find(item => item.id === productId || item.barcode === productId);
+    if (!p) {
+      showToast('Product SKU not found in catalog.', 'error');
+      return;
+    }
+
+    const idInput = document.getElementById('edit-sku-id');
+    const barcodeInput = document.getElementById('edit-sku-barcode');
+    const nameInput = document.getElementById('edit-sku-name');
+    const catSelect = document.getElementById('edit-sku-category');
+    const unitInput = document.getElementById('edit-sku-unit');
+    const costInput = document.getElementById('edit-sku-cost');
+    const sellInput = document.getElementById('edit-sku-selling');
+    const mrpInput = document.getElementById('edit-sku-mrp');
+    const stockInput = document.getElementById('edit-sku-stock');
+    const threshInput = document.getElementById('edit-sku-threshold');
+    const shelfInput = document.getElementById('edit-sku-shelf');
+
+    if (idInput) idInput.value = p.id || p.barcode;
+    if (barcodeInput) barcodeInput.value = p.barcode || '';
+    if (nameInput) nameInput.value = p.name || '';
+    if (catSelect) catSelect.value = p.category || 'Gourmet & Cooking';
+    if (unitInput) unitInput.value = p.unit || '1 unit';
+    if (costInput) costInput.value = p.costPrice !== undefined ? p.costPrice : (Number(p.sellingPrice) * 0.7).toFixed(2);
+    if (sellInput) sellInput.value = p.sellingPrice || '';
+    if (mrpInput) mrpInput.value = p.mrp || p.sellingPrice || '';
+    if (stockInput) stockInput.value = p.stockQuantity !== undefined ? p.stockQuantity : 50;
+    if (threshInput) threshInput.value = p.lowStockThreshold !== undefined ? p.lowStockThreshold : 10;
+    if (shelfInput) shelfInput.value = p.shelfLocation || 'General Aisle';
+
+    openModal('edit-product-modal');
+  }
+
+  // Handle Edit SKU Form Submit
+  async function handleEditProduct(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit-sku-id').value;
+    const barcode = document.getElementById('edit-sku-barcode').value.trim();
+    const name = document.getElementById('edit-sku-name').value.trim();
+    const category = document.getElementById('edit-sku-category').value;
+    const unit = document.getElementById('edit-sku-unit').value.trim() || '1 unit';
+    const costPrice = Number(document.getElementById('edit-sku-cost').value) || 0;
+    const sellingPrice = Number(document.getElementById('edit-sku-selling').value) || 0;
+    const mrp = Number(document.getElementById('edit-sku-mrp').value) || sellingPrice;
+    const stockQuantity = Number(document.getElementById('edit-sku-stock').value) || 0;
+    const lowStockThreshold = Number(document.getElementById('edit-sku-threshold').value) || 10;
+    const shelfLocation = document.getElementById('edit-sku-shelf').value.trim() || 'General Shelf';
+
+    const index = (AppState.catalog || []).findIndex(p => p.id === id || p.barcode === barcode);
+    if (index === -1) {
+      showToast('Product not found in catalog.', 'error');
+      return;
+    }
+
+    const updatedData = {
+      ...AppState.catalog[index],
+      name,
+      category,
+      unit,
+      costPrice,
+      sellingPrice,
+      mrp,
+      discountPercent: mrp > sellingPrice ? Math.round(((mrp - sellingPrice) / mrp) * 100) : 0,
+      stockQuantity,
+      lowStockThreshold,
+      shelfLocation
+    };
+
+    AppState.catalog[index] = updatedData;
+    localStorage.setItem('smartscan_catalog', JSON.stringify(AppState.catalog));
+
+    // Send PUT request to backend API
+    try {
+      if (API_BASE) {
+        await fetch(`${API_BASE}/api/products/${encodeURIComponent(id || barcode)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedData)
+        });
+      }
+    } catch (err) {}
+
+    showToast(`Product "${name}" updated successfully!`, 'success');
+    closeModal('edit-product-modal');
+    loadCatalog();
+    loadAnalytics();
   }
 
   // Export CSV
@@ -1373,6 +1464,9 @@
     // Add Product Form Submit
     document.getElementById('add-product-form')?.addEventListener('submit', handleAddProduct);
 
+    // Edit Product Form Submit
+    document.getElementById('edit-product-form')?.addEventListener('submit', handleEditProduct);
+
     // Manual Guard Token Input
     document.getElementById('guard-token-form')?.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -1401,6 +1495,7 @@
     showToast,
     exportCatalogCSV,
     importCatalogCSV,
+    openEditProductModal,
     lookupOrderForReturn,
     toggleReturnItem,
     changeReturnQty,
